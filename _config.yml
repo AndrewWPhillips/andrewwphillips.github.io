@@ -14,24 +14,25 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: The Silver Gopher
-email:
-description: >- # this means to ignore newlines until "baseurl:"
-  Write an awesome description for your new site here. You can edit this
-  line in _config.yml. It will appear in your document head meta (for
-  Google search results) and in your feed.xml site description.
-twitter_username: username
-github_username: username
-minimal_mistakes_skin: default
+name: Andrew W. Phillips
+email: aphillips801@gmail.com
+description: >- # this means to ignore newlines for this section
+  Andrew has been figuring out how to write good software since he read
+  "The Elements of Programming Style" in 1978.
+  He has come to realise that Go is the *one true path*.
+  " Write clearly - don't be too clever "
+github_username: AndrewWPhillips
+minimal_mistakes_skin: aqua
 search: true
 
 # Build settings
 markdown: kramdown
-remote_theme: mmistakes/minimal-mistakes
+remote_theme: https://github.com/AndrewWPhillips/minimal-mistakes
 # Outputting
 permalink: /:categories/:title/
 paginate: 5 # amount of posts to show
 paginate_path: /page:num/
-timezone: # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+timezone: Australia/Sydney
 
 include:
   - _pages
@@ -58,34 +59,34 @@ plugins:
   - jekyll-include-cache
 
 author:
-  name   : "First Lastname"
+  name   : "Andrew Phillips"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "My awesome biography constrained to a sentence or two goes here."
+  bio    : "Software developer and author."
   links:
-    - label: "Website"
-      icon: "fas fa-fw fa-link"
-      url: "https://"
-    - label: "Twitter"
-      icon: "fab fa-fw fa-twitter-square"
-      url: "https://twitter.com/"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://github.com/"
-    - label: "Instagram"
-      icon: "fab fa-fw fa-instagram"
-      url: "https://instagram.com/"
+      url: "https://github.com/andrewwphillips"
+    - label: "Stack Overflow"
+      icon: "fab fa-fw fa-stack-overflow"
+      url: "https://stackoverflow.com/users/767903/andrew-w-phillips"
+    - label: "&nbsp;&nbsp;Code Project"
+      icon: "fa-code"
+      url: "https://www.codeproject.com/Articles/135474/"
+    - label: "Linked In"
+      icon: "fab fa-fw fa-linkedin"
+      url: "https://www.linkedin.com/in/aphillips801/?lipi=urn%3Ali%3Apage%3Ad_flagship3_feed%3Bxd%2Fli%2Fj7QMWAFK7KRHU3Lg%3D%3D"
 
 footer:
   links:
-    - label: "Twitter"
-      icon: "fab fa-fw fa-twitter-square"
-      url: "https://twitter.com/"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://github.com/"
-    - label: "Instagram"
-      icon: "fab fa-fw fa-instagram"
-      url: "https://instagram.com/"
+      url: "https://github.com/andrewwphillips"
+    - label: "Stack Overflow"
+      icon: "fab fa-fw fa-stack-overflow"
+      url: "https://stackoverflow.com/users/767903/andrew-w-phillips"
+    - label: "Linked In"
+      icon: "fab fa-fw fa-linkedin"
+      url: "https://www.linkedin.com/in/aphillips801/?lipi=urn%3Ali%3Apage%3Ad_flagship3_feed%3Bxd%2Fli%2Fj7QMWAFK7KRHU3Lg%3D%3D"
 
 defaults:
   # _posts
@@ -93,11 +94,12 @@ defaults:
       path: ""
       type: posts
     values:
+      show_date: true
       layout: single
       author_profile: true
       read_time: true
       comments: true
-      share: true
+      share: false
       related: true
   # _pages
   - scope:
@@ -113,3 +115,8 @@ category_archive:
 tag_archive:
   type: liquid
   path: /tags/
+
+comments:
+  provider: "disqus"
+  disqus:
+    shortname: "andrewwphillips"
