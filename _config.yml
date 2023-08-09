@@ -22,7 +22,7 @@ description: >- # this means to ignore newlines for this section
   He has come to realise that Go is the *one true path*.
   " Write clearly - don't be too clever "
 github_username: AndrewWPhillips
-minimal_mistakes_skin: aqua
+minimal_mistakes_skin: air
 search: true
 
 # Build settings
