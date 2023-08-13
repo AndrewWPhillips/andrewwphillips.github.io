@@ -1,9 +1,9 @@
 ---
 title: "Go's \"Reference\" Types"
-excerpt: "It's important to understand the behaviour of maps, slices, etc"
+excerpt: "It's important to understand the behaviour of maps, slices, etc<br/><br/>"
 toc: true
 toc_sticky: true
-categories: [blog go]
+categories: [go]
 tags: [types]
 header:
   overlay_image: "/assets/images/pointer.jpg"
@@ -18,7 +18,7 @@ Then there is the whole debate on **whether Go even has reference types**.  I do
 
 The important thing is to understand how reference types (or whatever you want to call them) work.
 
-(But for all the pedants that insist that Go does **not** have reference variables I show in [Captured Variables](#captured-variables) below
+(But for those who insist that Go does **not** have reference variables I show in [Captured Variables](#captured-variables) below
 that even using the strictest definition Go _does_ have them.)
 
 # Background
@@ -26,25 +26,25 @@ that even using the strictest definition Go _does_ have them.)
 <details markdown="1">
 <summary>General</summary>
 <br/>
-The idea of reference types (as opposed to value types) goes back to Fortran.  Though, now I think about it, assembly languages have addressing modes that are "reference types" -- where a value (register) is used as a memory address (reference/pointer).  This contrasts with "immediate addressing", where there is no memory address just a value.
+The idea of reference types (as opposed to value types) goes back to Fortran.  Though, now I think about it, even assembly languages have addressing modes that are "reference types" -- where a value (register) is used as a memory address (reference/pointer).  This contrasts with "immediate addressing", where there is no memory address just a value.
 
 **Fortran**
 
-In Fortran, when you use a variable as a function (subroutine) parameter the address of the variable is placed on the stack.  When the function makes use of the parameter it is actually working with the original variable (but with a different name), and dereferencing it through the address.
+In Fortran, when pass a variable as an argument to a function (subroutine), the address of the variable is placed on the stack.  When the function makes use of the parameter it is actually working with the original variable (but with a different name), and dereferencing it through the address.
 
 This way of passing parameters came to be called "pass-by-reference".  It was error-prone, resulting in bugs - for example, if a parameter was assumed to be just an "input" parameter but was (deliberately or inadvertently) modified, it could have bewildering consequences.
 
 **Algol**
 
-When Algol appeared a few years later they avoided this problem by making parameters "pass-by-value" (by default).  Algol (and Pascal, etc) optionally allows pass-by-reference in case you wanted to return a value, or for efficiency if you wanted to pass a large object.
+When Algol appeared a few years later they avoided this problem by making parameters "pass-by-value" (by default).  Algol (and Pascal, etc) optionally allow pass-by-reference in case you wanted to return a value, or for efficiency if you wanted to pass a large object.
 
 **C**
 
-C is derived from Algol - so uses "value" types.  It does **not** have pass by reference, but you acheive the same effect by taking the address of a variable (using the `&` operator).
+C is derived from Algol - so uses "value" types.  It does **not** have pass by reference, but you achieve the same effect by taking the address of a variable (using the `&` operator).
 
-In this way, C is much more like assembly, a pointer is an address -- you must explicitly dereference it (using the * operator).  This makes things more obvious than the reference types of other languages. (Possibly a drawback is that it is easy to create bugs by dereferencing through NULL or even uninitialized pointers.)
+In this way, C is much more like assembly, a pointer is an address -- you must explicitly dereference it (using the * operator).  This makes things more obvious than the reference types of other languages.
 
-Note that types in C have some "optimizations" (because passing large objects on the stack is inefficient).  First, whenever you use an array in C you get a pointer to the first element*.  Also, originally in C you could **not** pass a struct to a function - only a pointer to it - though this restriction was later removed.
+Note that types in C have some "optimizations" (because passing large objects on the stack is inefficient).  First, whenever you use an array in C you get a pointer to the first element.  Also, originally in C you could **not** pass a struct to a function - only a pointer to it - though this restriction was later removed.
 
 **Java**
 
@@ -54,7 +54,7 @@ A purist might claim that *use* of a reference type must be indistinguishable fr
 
 **C++**
 
-C++ is (effectively) a superset of C, so it has pointers.  However, to facilitate other features that were added to C++ it also added reference types.  A reference type is just an alias to an existing variable.  Internally it's a pointer, but you can't have a null reference, and you don't need to use the * operator to use the value.
+C++ is (effectively) a superset of C, so it has pointers.  However, to facilitate other features that were added to C++ it also added reference types.  A reference type is just an alias to an existing variable.  Internally it's a pointer to an actual value -- so you can't have a null reference, and you don't need to use the * operator to use the value.
 
 </details>
 <!--****************************-->
@@ -65,7 +65,7 @@ Go, like C, is said to be value based. You can use **pointers** for "explicit" r
 
 But Go has the complication that there are a few types that have "hidden" pointers.  For example, internally maps are just pointers, and slices contain pointers, but it is easy to forget this as you don't need to explicitly dereference the pointer.
 
-For this reason emphasizing that these types are reference types can be useful as a reminder to take care.  Unfortunately, there are 
+For this reason, emphasizing that these types are reference types can be useful as a reminder to take care.  Unfortunately, there are a few different ideas about what "reference types" actually means.
 
 **Definitions**
 
@@ -86,17 +86,17 @@ Note that when I talk about a function I mean the `func` type, which is official
 
 **What's the best definition?**
 
-We can discount definition 1, as the `string` type has a hidden pointer.  However, as they're immutable (you can't modify the string through the pointer) `string` behaviour is effectively indistinguishable from other primitive types (like int).
+We can discount definition 1, as the `string` type has a hidden pointer.  Strings are immutable, so you can't modify the string through the pointer.  Hence `string` behaviour is effectively indistinguishable from other primitive types.
 
-Similarly, definition 2 does not work as interfaces are not reference types.  Like strings, interface values are immutable (unless they contain a reference type - see definition 8).
+Similarly, definition 2 does not work as interfaces are **not** reference types.  Like strings, interface values are immutable (unless they contain a reference type and you use definition 8).
 
 Definition 3 is also wrong as, pointers and `func` types _are_ reference types.
 
-If you insist I would go with definition 4, as they satisfy my steps for determining if a type is a reference type.
+I am using definition 4, since it satisfies my steps for determining if a type is a reference type.
 
 **My Steps**
 
-The problem we are trying to highlight is that you can (shallow) copy a variable then inadvertently modify the original when you only think you are modifying the copy.
+The problem we are trying to highlight is that you can copy a variable then inadvertently modify the original when you only think you are modifying the copy.
 
 So I will use these steps to determine if a type is a reference type in Go.
 
@@ -114,14 +114,14 @@ So I will use these steps to determine if a type is a reference type in Go.
 
 The  **Background->Go** section above goes into detail on how I define "reference" variables.
 
-In brief, it is any type of variable that, when copied, changes to the copy affect the original.  Indeed, it is this behaviour that has lead to many bugs.
+In brief, if you assign a variable to another variable changes in either will be seen in both.  Indeed, it is this behaviour that has lead to many bugs.
 
 **The important thing is to understand how they work, not what you call them.**
 {: .notice--warning}
 
-For example, I recently discovered a bug in my own code which caused a data race.  I had passed a map to a different go-routine, through a channel, rather than cloning it first.
+For example, I recently discovered a bug in my own code which caused a data race.  This happened because I passed a map to a different go-routine (through a channel) rather than cloning it first.  This is a common sort of mistake in Go, and the sort of thing I would not have done in C (where you need to explicitly pass a pointer).
 
-So let's look at how different "reference" types work.  I'll also look at arrays (and interfaces), even though they ae not reference types.  Arrays, in particular, are often expected not to be value types (probably because of how they work in C).
+So let's look at how different "reference" types work.  I'll also look at arrays (and interfaces), even though they are "value" types.
 
 ## Slices
 
@@ -138,9 +138,9 @@ Remember that even though the contents of `a` can be modified using `b`, you can
 
 <div style="float: right; width: 350px;"><img src="{{ site.url }}{{ site.baseurl }}/assets/images/ref-slice-copy.png"/></div>
 
-Note: This diagram does not show the capacity of the slices.  They both have a capacity the same as the length (4).
+Note: This diagram does not show the capacity of the slices.  Both slices have a capacity the same as the length (4).
 
-## Not Arrays
+## Arrays *
 
 ```go
 	a := [4]int{1, 2, 3, 4}
@@ -149,8 +149,7 @@ Note: This diagram does not show the capacity of the slices.  They both have a c
 	log.Println(a) // [1 2 3 4]
 ```
 <div style="float: right; width: 300px;"><img src="{{ site.url }}{{ site.baseurl }}/assets/images/ref-array-copy.png"/></div>
-
-Arrays, on the other hand, are value types **not** reference types.
+Arrays are often expected to be reference types (probably because of how they work in C) but are value types **not** reference types.
 
 When you use an array you get a complete copy of it.
 <br/>
@@ -178,7 +177,7 @@ Although it is not usually a source of bugs, channels **are** reference types.
 	log.Println(a) // map[1:42]
 ```
 
-As you guessed, maps are reference types in much the same ways as channels.  Just about all Gophers encounter this at some point.
+As you guessed, maps are reference types in much the same ways as channels.  Just about all Gophers encounter problems due to this at some point.
 
 ## Pointers
 
@@ -194,7 +193,7 @@ Pointers are reference types.
 ```
 <div style="float: right; width: 200px;"><img src="{{ site.url }}{{ site.baseurl }}/assets/images/ref-pointer-copy.png"/></div>
 
-With pointers, you must explicitly dereference the pointed to value (using the `*` operator) - but this is similar to accessing the values of a map or slice (using the indexing `[]` operation).
+Some argue that they are not references types because you must explicitly dereference the pointed to value (using the `*` operator) - but this is similar to accessing the values of a map or slice (using the indexing `[]` operation).
 
 ## Functions
 
@@ -219,9 +218,9 @@ func main() {
 ```
 If closures were value types, the code would print `2` not `3`.
 
-## Not Interfaces
+## Interfaces *
 
-Despite claims to the contrary, interfaces are not reference types, otherwise the following code would print 42.
+Despite claims to the contrary, interfaces are **not** reference types, otherwise the following code would print 42.
 
 ```go
     var a, b interface{}
@@ -233,7 +232,7 @@ Despite claims to the contrary, interfaces are not reference types, otherwise th
 
 ## Composite Types
 
-Composite types are types composed of other types (ie, anything apart from the primitive types - numeric types, bool and string). Even composite types that are normally value types, can act like reference types if they contain a reference type.
+Composite types are types composed of other types (ie, anything apart from the primitive types - numerics, bool and string). Even composite types that are normally value types, can act like reference types if they _contain_ a reference type.
 
 ```go
     type sp struct { p *int }
@@ -251,11 +250,12 @@ As pointed out at [There Are No Reference Types in Go](https://www.tapirgames.co
 
 Even Dave Cheney says "Go does not have reference variables" at [There is no pass-by-reference in Go](https://dave.cheney.net/2017/04/29/there-is-no-pass-by-reference-in-go).
 
-My opinion, without getting into pendantic semantics is that the idea (as discussed above), is useful, at the very least as a reminder to take care when copying maps.
+My opinion, without getting into **pendantic semantics**™ is that the idea (as discussed above), is useful, at the very least as a reminder to take care when copying maps.
 
-However, even with the strictest definition of a reference, Go does indeed have them.
+However, even with the strictest definition of a reference, Go does indeed have them when a closure "captures" a variable.
 
-BTW the strictest definition is, as in C++, that a reference is just an alias to an existing variable. Note that even reference types in Java fail this definition, since they can be null.
+The strictest definition is, as in C++, that a reference is just an alias to an existing variable. Note that even reference types in Java fail this definition, since they can be null.
+{: .notice--warning}
 
 ## Captured Variables
 
@@ -268,7 +268,7 @@ Here is an example of Go code with a reference variable.
     }()
 ```
 
-Here (on the 1st line) we create an integer variable `i`.  Then we use `i` (on the 3rd line), but this is not the same variable, even though it has the same name and _references_ the same value.
+On the 1st line, we create an integer variable `i`.  Then we use `i` (on the 3rd line), but this is not the same variable, even though it has the same name and _references_ the same value.
 
 The `func` (starting on the 2nd line) is a closure that captures `i` by taking its address.  Any use of `i` in the function is by reference to the original `i`. 
 
@@ -287,13 +287,14 @@ func main() {
   f()  // 1
 }
 ```
-Note that because a reference to 'i' is preserved within the closure, the original `i` is not stored on the stack.  The compiler's **escape analysis** reveals that it is needs to be placed on the heap.
+The value is still available when `f()` is called at the end of `main()`, as the compiler determines (with **escape analysis**) that it is needs to be placed on the heap.
+{: .notice--warning}
 
 # Deep Operations
 
 While we are on the subject, I just want to explain what is meant by "deep" operations such as **deep copy** and **deep compare**.
 
-When you copy or compare pointers in Go (or C) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
+In Go (or C), when you copy (eg using `=`) or compare pointers (eg using `==`) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
 
 This is called _shallow_ copying/comparing.  To use the values you must "dereference" the pointer, for a _deep_ operation.
 
@@ -306,9 +307,9 @@ For example, if two pointers point to different variables, they will **not** be 
     log.Println(*p == *q) // true (deep compare)
 ```
 
-Because Go is generally a "value-based" language, when you copy (by assignment or passing as a parameter) or compare (using `==` or `!=`) the compiler always uses "shallow" operations.
+Because Go is a "value-based" language, when you copy (by assignment or passing as a parameter) or compare (using `==`, etc) the compiler uses "shallow" operations.
 
-In order to perform deep operations on "reference" types you generally need to code it "by hand" or call a function.
+In order to perform deep operations on "reference" types you generally need to code it "by hand" or call a function.  Let's look at how...
 
 ## Maps
 
@@ -322,9 +323,9 @@ The built-in `copy` function allows you to copy the _contents_ of slices, but th
 
 To get an exact copy of a slice you must create a new slice (with the same length and capacity) then copy over all the elements using a `for ... range` loop.
 
-Deep comparison of slices are done manually, though the standard library does provide `bytes.Equal` for comparing `byte` slices.
+Deep comparison of slices are typically done manually, though the standard library does provide `bytes.Equal` for comparing `byte` slices.
 
-Note: like for maps, Go 1.21 will provide generic helpers: `slices.Clone`, `slices.Equal`, etc.
+Note: as for maps, Go 1.21 will provide generic helpers: `slices.Clone`, `slices.Equal`, etc.
 
 ## Pointers
 
@@ -337,6 +338,9 @@ It's not possible (or generally useful) to perform deep operations on these type
 ## Composite Types
 
 Deep operations on these types are only necessary if they _contain_ "reference" types.  In this case you need to manually code deep operations (also see `reflect.DeepEqual` below).
+
+Since composite types may nest other composite types (to any depth), you can have more than one level of depth in the "tree" of relationships.  **Deep** means traversing all the levels for a **deep copy** or **deep comparison**.
+{: .notice--warning}
 
 ## Standard Library Functions
 
@@ -374,7 +378,7 @@ Map keys are the main reason for the comparability rules of Go.
 
 ## Comparability
 
-If you are not familiar with the comparability rules of Go then in brief: there are three types that may **not** be compared: maps, slices and functions.  Moreover, structs, arrays, and interfaces that contain them, are also not comparable.
+If you are not familiar with the comparability rules of Go then as brief simplification: there are three types that may **not** be compared: maps, slices and functions.  Moreover, structs, arrays, and interfaces that contain them, are also not comparable.
 
 Ostensibly this is because they are "reference" types. But then why are pointers and channels comparable?
 
@@ -384,9 +388,9 @@ I was going to explore this in depth, but I'm getting side-tracked.  It would be
 
 # Conclusion
 
-I hope this was a useful explanation of how types containing internal pointers work.  This is what many people mean when they talk about "reference" types in Go.
+I hope this was a useful explanation of how types with internal pointers work.  This is what many people mean when they talk about "reference" types in Go.
 
-It is especially important to understand:
+To avoid problems the main points to remember are:
  * slices always have an underlying array (or are nil)
- * a slice's underlying array may be used elsewhere
- * when you assign a map (or pass it as a parameter) you are not getting a copy of all the elements.
+ * a slice's underlying array may be shared - changing slice contents changes the array, and any sharing slices
+ * when you assign a map (or pass it as a parameter) you are not getting a copy of the contents
