@@ -294,7 +294,7 @@ The value is still available when `f()` is called at the end of `main()`, as the
 
 While we are on the subject, I just want to explain what is meant by "deep" operations such as **deep copy** and **deep compare**.
 
-In Go (or C), when you copy (eg using `=`) or compare pointers (eg using `==`) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
+In Go, when you copy (eg using `=`) or compare pointers (eg using `==`) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
 
 This is called _shallow_ copying/comparing.  To use the values you must "dereference" the pointer, for a _deep_ operation.
 
@@ -307,7 +307,7 @@ For example, if two pointers point to different variables, they will **not** be 
     log.Println(*p == *q) // true (deep compare)
 ```
 
-Because Go is a "value-based" language, when you copy (by assignment or passing as a parameter) or compare (using `==`, etc) the compiler uses "shallow" operations.
+Because Go is a "value-based" language, when you copy (by assignment, passing a parameter, returning a value, etc) or compare (using `==`, etc) the compiler uses "shallow" operations.
 
 In order to perform deep operations on "reference" types you generally need to code it "by hand" or call a function.  Let's look at how...
 
@@ -315,7 +315,7 @@ In order to perform deep operations on "reference" types you generally need to c
 
 You need to manually provide deep operations on maps, such as using a loop to copy elements.
 
-Note that Go 1.21 (released soon) provides generic helper functions in the `maps` package: `maps.Copy` and `maps.Clone` to copy a map, and `maps.Equal`, etc to compare maps of the same type.
+Note that Go 1.21 (just released - see [Go 1.21](/blog/go1p21.html)) provides generic helper functions in the `maps` package: `maps.Copy` and `maps.Clone` to copy a map, and `maps.Equal`, etc to compare maps of the same type.
 
 ## Slices
 
@@ -325,7 +325,7 @@ To get an exact copy of a slice you must create a new slice (with the same lengt
 
 Deep comparison of slices are typically done manually, though the standard library does provide `bytes.Equal` for comparing `byte` slices.
 
-Note: as for maps, Go 1.21 will provide generic helpers: `slices.Clone`, `slices.Equal`, etc.
+Note: like for maps, Go 1.21 provides generic helpers: `slices.Clone`, `slices.Equal`, etc.
 
 ## Pointers
 
@@ -350,7 +350,7 @@ The standard library also provides `reflect.DeepEqual` which usually works well 
 
 With the advent of generics, the Go authors have created generic functions to perform deeper operations on maps and slices.  Note that the _elements_ themselves are "shallow" copied/compared - ie there is no recursive "depth" as with `reflect.DeepEqual`.
 
-See the `Copy`, `Clone`, `Equal`, `Compare`, etc functions in [maps](https://pkg.go.dev/golang.org/x/exp/maps) and [slices](https://pkg.go.dev/golang.org/x/exp/slices) packages.  These generic `maps` and `slices` packages will be added to the Go standard library in Go 1.21.
+See the `Copy`, `Clone`, `Equal`, `Compare`, etc functions in [maps](https://pkg.go.dev/golang.org/x/exp/maps) and [slices](https://pkg.go.dev/golang.org/x/exp/slices) packages.  These generic `maps` and `slices` packages have now been added to the Go standard library in Go 1.21.
 
 # Comparability and Map Keys
 
