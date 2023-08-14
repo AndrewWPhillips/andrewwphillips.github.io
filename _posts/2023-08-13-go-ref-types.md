@@ -6,7 +6,7 @@ toc_sticky: true
 categories: [go]
 tags: [types]
 header:
-  overlay_image: "/assets/images/pointer.jpg"
+  overlay_image: "/assets/images/Pointer.jpg"
   overlay_filter: 0.5
   caption: "Image: [Noun Project](https://thenounproject.com/)"
 permalink: /blog/go-ref-types.html
