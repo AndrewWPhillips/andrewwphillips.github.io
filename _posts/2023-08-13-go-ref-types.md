@@ -3,8 +3,8 @@ title: "Go's \"Reference\" Types"
 excerpt: "It's important to understand the behaviour of maps, slices, etc<br/><br/>"
 toc: true
 toc_sticky: true
-categories: [go]
-tags: [types]
+categories: [language,types]
+tags: [reference,value,type,comparability,pitfall,gotcha]
 header:
   overlay_image: "/assets/images/Pointer.jpg"
   overlay_filter: 0.5
@@ -30,21 +30,21 @@ The idea of reference types (as opposed to value types) goes back to Fortran.  T
 
 **Fortran**
 
-In Fortran, when pass a variable as an argument to a function (subroutine), the address of the variable is placed on the stack.  When the function makes use of the parameter it is actually working with the original variable (but with a different name), and dereferencing it through the address.
+In Fortran, when you pass a variable as an argument to a function (subroutine), the address of the variable is placed on the stack.  When the function makes use of the parameter it is actually working with the original variable (perhaps with a different name), and dereferencing it through the address.
 
 This way of passing parameters came to be called "pass-by-reference".  It was error-prone, resulting in bugs - for example, if a parameter was assumed to be just an "input" parameter but was (deliberately or inadvertently) modified, it could have bewildering consequences.
 
 **Algol**
 
-When Algol appeared a few years later they avoided this problem by making parameters "pass-by-value" (by default).  Algol (and Pascal, etc) optionally allow pass-by-reference in case you wanted to return a value, or for efficiency if you wanted to pass a large object.
+When Algol appeared a few years later they avoided this problem by making parameters "pass-by-value" (by default).  Note that Algol _also_ allows pass-by-reference in case you wanted to _return_ a value, or for efficiency if you wanted to pass a large object.  (I _think_ Algol also has pointers as in C - see next.)
 
 **C**
 
 C is derived from Algol - so uses "value" types.  It does **not** have pass by reference, but you achieve the same effect by taking the address of a variable (using the `&` operator).
 
-In this way, C is much more like assembly, a pointer is an address -- you must explicitly dereference it (using the * operator).  This makes things more obvious than the reference types of other languages.
+In this way, C is much more like assembly, a pointer is an address -- you must explicitly dereference it (using the * operator).  This makes things more obvious than the implicit dereferencing of other languages.
 
-Note that types in C have some "optimizations" (because passing large objects on the stack is inefficient).  First, whenever you use an array in C you get a pointer to the first element.  Also, originally in C you could **not** pass a struct to a function - only a pointer to it - though this restriction was later removed.
+Note that types in C have some "optimizations" (because passing large objects on the stack is inefficient).  First, whenever you use an array in C you get a pointer to the first element.  Also, originally in C you could **not** pass a struct to a function - only a pointer to it - though this restriction was later lifted.
 
 **Java**
 
@@ -88,7 +88,7 @@ Note that when I talk about a function I mean the `func` type, which is official
 
 We can discount definition 1, as the `string` type has a hidden pointer.  Strings are immutable, so you can't modify the string through the pointer.  Hence `string` behaviour is effectively indistinguishable from other primitive types.
 
-Similarly, definition 2 does not work as interfaces are **not** reference types.  Like strings, interface values are immutable (unless they contain a reference type and you use definition 8).
+Similarly, definition 2 does not work as interfaces are **not** reference types.  Like strings, interface values are immutable (unless they contain a reference type, and you use definition 8).
 
 Definition 3 is also wrong as, pointers and `func` types _are_ reference types.
 
@@ -96,7 +96,7 @@ I am using definition 4, since it satisfies my steps for determining if a type i
 
 **My Steps**
 
-The problem we are trying to highlight is that you can copy a variable then inadvertently modify the original when you only think you are modifying the copy.
+The problem we are trying to highlight is that you can copy a variable then inadvertently modify the original when you only think you are only modifying the copy.
 
 So I will use these steps to determine if a type is a reference type in Go.
 
@@ -119,7 +119,7 @@ In brief, if you assign a variable to another variable changes in either will be
 **The important thing is to understand how they work, not what you call them.**
 {: .notice--warning}
 
-For example, I recently discovered a bug in my own code which caused a data race.  This happened because I passed a map to a different go-routine (through a channel) rather than cloning it first.  This is a common sort of mistake in Go, and the sort of thing I would not have done in C (where you need to explicitly pass a pointer).
+For example, I recently discovered a bug in my own code which caused a data race.  This happened because I passed a map to a different go-routine (through a channel) rather than cloning it first.  This is a common sort of mistake in Go, and the sort of thing I would not have done in C.
 
 So let's look at how different "reference" types work.  I'll also look at arrays (and interfaces), even though they are "value" types.
 
