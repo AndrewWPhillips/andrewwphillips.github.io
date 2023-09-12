@@ -56,6 +56,7 @@ A purist might claim that *use* of a reference type must be indistinguishable fr
 
 C++ is (effectively) a superset of C, so it has pointers.  However, to facilitate other features that were added to C++ it also added reference types.  A reference type is just an alias to an existing variable.  Internally it's a pointer to an actual value -- so you can't have a null reference, and you don't need to use the * operator to use the value.
 
+---
 </details>
 <!--****************************-->
 <details markdown="1">
@@ -106,6 +107,7 @@ So I will use these steps to determine if a type is a reference type in Go.
 4. Modify `b` in a different way
 5. Check if there is a discernible difference in `a`
 
+---
 </details>
 <!--****************************-->
 <br/>

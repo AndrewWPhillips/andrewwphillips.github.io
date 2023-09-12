@@ -45,7 +45,7 @@ The first compiler directives I encountered were in Pascal.  They were hidden in
 
 There are probably more compilers in existence for C than any other language.  (I worked on one myself.)  Consequently, there are many ways that directives are handled.
 
-In the first C compilers, the _preprocessor_ was not even considered to be part of the language.  (Nowadays the so-called preprocessor directives are a fundamental part of the language.)  So `#pragma` was added as a "preprocessor directive" to allow implementations to have an explicit escape mechanism.  Over time many C `#pragma`s (like `#pragma pack`, `#pragma once` etc), though not part of the standard language, were implemented by most compilers as a _de facto_ standard.
+In the first C compilers, the _preprocessor_ was not even considered to be part of the language.  (Nowadays the so-called preprocessor directives are a fundamental part of the language.)  So `#pragma` was added as a "preprocessor directive" to allow implementations to have an explicit escape mechanism.  Over time many C `#pragma`s (like `#pragma pack`, `#pragma once` etc.), though not part of the standard language, were implemented by most compilers as a _de facto_ standard.
 
 The C standard has another escape mechanism - identifiers starting with two underscores.  Implementations can even add new keywords to their version of the language by prefixing them with "__".
 
@@ -59,6 +59,7 @@ C# has a "preprocessor" (modelled after the one in C) that allows many directive
 
 As I mentioned in [C# Overflow Checking using Checked](https://www.codeproject.com/Articles/7776/Arithmetic-Overflow-Checking-using-checked-uncheck) the design of C# can be confusing.  The C# `checked` keyword should probably have been a compiler directive as it only affects code generation within the source file, but it looks more like a statement/function.
 
+---
 </details>
 <!--****************************-->
 <details markdown="1">
@@ -78,6 +79,8 @@ Go use the traditional method of hiding them in comments.  I'm not sure why.  Th
 **import "unsafe"**
 
 The import of the `unsafe` "package" is really just a compiler directive.  There is no actual package of that name.  It just flags to the compiler to allow certain "unsafe" features.  (There are probably more unsafe features than you think -- which I might cover in a future post.)
+
+---
 </details>
 <!--****************************-->
 <br/>
@@ -143,6 +146,93 @@ Go has a simple, and surprisingly effective, method of conditional compilation. 
 
 This is a big topic, so I have decided to defer talking about it till my next post.  Stay tuned.
 
+# //go:debug
+
+I have always found that each Go release does an amazing job of backward compatibility.  This is for many reasons, not just Go's [Compatibility Promise](https://go.dev/doc/go1compat), but also due to only building from source, extensive testing, etc.
+
+Unfortunately, changes sometimes need to be made to Go that break backward compatibility.  This is not done lightly.  It's usually to address some bug, or vulnerability.  These changes can break existing code that depends on the old behaviour.
+
+Luckily, Go has (for many years) allowed you to get the old behaviour for at least 2 years even when building with the latest Go release.  This was done by adding a setting to the GODEBUG environment variable - see (Go Backwards Compatibility and GODEBUG)[https://go.dev/doc/godebug].
+
+More recently, even more control was added by Russ Cox (see [Backward Compatibility, Go 1.21, and Go 2](https://go.dev/blog/compat)) including the `//go:debug` directive.
+
+## GODEBUG Environment Variable
+
+Go has always had certain environment variables that are used to control how your program runs.  Usually these control some aspect of the runtime system (eg `GOGC`, `GOMAXPROCS`, etc).  `GODEBUG` is another that originally triggered debug information by way of individual settings such as `gctrace` (trace info. on garbage collections), `schedtrace` (goroutine scheduling), etc.
+
+Since GODEBUG just consisted of a list of key=value pairs it quickly gathered settings to control the runtime and parts of the standard library, including ways to retain old behaviour, when a change that broke backward was deemed essential.
+
+For example, there was a fix to avoid a possible security vulnerability in Go 1.15 which broke a lot of production software.  To enable the old behaviour in Go 1.15 (and the next few releases) you could use the `x509ignoreCN=0` setting.  This would allow your software to continue to work, then fixed at a later time.
+
+```shell
+export GODEBUG=x509ignoreCN=0
+```
+
+It is hard to find a full list of GODEBUG settings, especially as they change between releases.  Russ Cox's proposal (see below) gives quite a few, though it doesn't mention the `panicnil` setting introduced in Go 1.21.
+
+## Using //go:debug
+
+Changes have recently been made to Go to allow more control of GODEBUG settings - see Russ Cox's [Proposal: Extended backwards compatibility for Go](https://go.googlesource.com/proposal/+/master/design/56986-godebug.md).  This was implemented in Go 1.21.
+
+The effective value for any particular GODEBUG setting is determined by this order:
+
+1. Go compiler release
+2. Go version as specified in go.work or go.mod
+3. `//go:debug` directive
+4. Value in GODEBUG environment variable
+
+Using the `panicnil` setting as an example: If you built with Go 1.21 then, by default, the `panicnil` setting would be 1. However, if the go.mod file contained the line:
+
+```
+go 1.20
+```
+
+then `panicnil` would be set to 0.  This, in turn, could be overridden with the `//go:debug` directive like this:
+
+```go
+//go:debug panicnil=1
+package main
+...
+```
+
+Note that you can verify the `//go:debug` directives that were used when a program was built using `go list` like this:
+
+```shell
+$ go list -f '{{.DefaultGODEBUG}}'
+panicnil=1
+```
+
+Finally, you can override any setting using the GODEBUG environment variable. How to set an environment variable depends on your operating system but this may work for you:
+
+```shell
+export GODEBUG=panicnil=1
+# or if GODEBUG already has a value
+export GODEBUG=$GODEBUG,panicnil=1
+```
+
+## When to use //go:debug
+
+You need to use this directive when all the following conditions (for the program being built) are met:
+* the code depends on behaviour that has changed in the new release of Go
+* the code can't be fixed (yet) to be compatible with the new release
+* the new release is required for some other reason
+* you can't rely on GODEBUG always being correctly set in production
+
+Note that by "the code" I do not necessarily mean your code.  More than likely it is due to a package you are using that has not been updated.  You need to get the package owner to fix the package.  (You could fork the package and make the fix yourself, but I would not recommend that approach unless the package is not being maintained.)
+
+## How to use //go:debug
+
+Remember that `//go:debug` settings apply to the whole program.  You can't use different settings per source file or package.
+
+**Important:** To have any effect a `//go:debug` setting **must** appear before the `package main` declaration, or it will be **ignored**.  It can be added to any .go file of the main package, but if you have multiple instances of the same setting (perhaps in different .go files) you will get a build error, **even if they use the same value**.
+{: .notice--warning}
+
+To check that your `//go:debug` directives were effective use `go list`.
+
+```shell
+$ go list -f '{{.DefaultGODEBUG}}'
+```
+
 # //go:noescape
 
 This directive signals that any parameters passed to the function do not "escape" the function, so do not need to be placed on the heap.
@@ -195,6 +285,8 @@ $ go build -gcflags -m
 This output from the **escape analysis** phase of the compiler shows that, because the parameter `p` "leaks" from the `escape()` function, the variable `i` is stored on the heap.
 
 Of course, most functions don't do anything as silly as save an address to a global, but if the `escape` function above was written in assembly (or C) then the escape analysis, without _further information_, would have to assume the worst.  The `//go:noescape` directive supplies that _further information_.
+
+---
 </details>
 <br/>
 There are a lot of low-level functions in the Go standard library that take "reference" types as parameters and that are, of necessity, written in assembly.  These use the `//go:noescape` directive to tell the Go compiler that their parameters do not escape.
@@ -202,6 +294,55 @@ There are a lot of low-level functions in the Go standard library that take "ref
 ## When to use //go:noescape
 
 You only need this directive if you are writing a low-level function in assembly (or maybe C).  If you do use it then you better ensure that the function's parameters do **not** escape.
+
+# //go:uintptrescapes
+
+This directive is, in a way, the antithesis of `//go:noescape`.  The Go compiler assumes that pointers (and other "reference" types) escape to the heap if they are passed to a function which is not written in Go.  `//go:noescape` tells the compiler that the parameters do not need to be on the heap.
+
+In contrast, the `uintptr` type is **not** a "reference" type so the Go compiler assumes any parameters of that type do not escape to the heap.  `//go:uintptrescapes` tells the compiler that any `uintptr` parameters should be placed on the heap.
+
+## When to use //go:uintptrescapes
+
+Use this directive if you call a function written in assembly (or C) that takes `uintptr` parameters and the values are somehow used after the function returns (so need to be on the heap).
+
+# //go:nosplit
+
+You are probably aware that every goroutine has a stack.  The stack starts off small, but can grow virtually without limit.  The way it grows is that at the start of every function there is a bit of code (called the preamble) that checks if the stack needs to be expanded (ie, if the function's required memory, or "stack frame", would cause the current stack size to be exceeded).
+
+The `//go:nosplit` turns off this preamble. But it is clever enough to do so safely.  Read on to find out how!
+
+## Stack Resizing and the Red Zone
+
+Originally in Go, when the stack needed to be expanded a new block of stack was added (in a sort of linked list).  That is, the stack, which was just one block, was "split" in two.  Due to different issues the way the Go stack grows was changed.  Now, a new bigger block is allocated on the heap and the old stack is copied into it.  So **nosplit** is a bit of a misnomer since the stack is never _split_.
+
+The first thing to know about Go stacks is that the runtime always keeps a little bit of empty space above the part of the stack that is in use.  This is called the **red zone**.  The size of the red zone is about 700 bytes, but can vary between releases and for other reasons. 
+
+The red zone is needed for a few reasons: to allow the runtime a bit of space to handle interrupts.  More relevant is that it can also be used by Go functions (typically low-level standard library functions).  If a function is preceded by the `//go:nosplit` directive it does not get a preamble, which means the goroutine's stack cannot be expanded.  Consequently, there are some restrictions on the size of its stack frame.
+
+In the best case the stack frame size can be up to the size of the red zone, but if the function calls, or is called by other function(s) that also use `//go:nosplit` then the allowed frame size is commensurately reduced.
+
+By analysing the call trees of all functions that use the `//go:nosplit` directive the compiler can determine if the red zone would be exceeded at compile time.  If you add the `//go:nosplit` directive to a function which would cause the red zone to be exceeded the compiler will give you an error.
+
+## Goroutine Preemption
+
+A slight detour is required here because the function preamble was also, in the past, involved in go-routine scheduling.
+
+If there are more goroutines in a running Go program than there are (unblocked) threads allocated to the programs (as determined by GOMAXPROCS) then the Go runtime has to schedule the goroutines onto the available threads.
+
+Up until Go 1.14 this scheduling was "co-operative" and only done at certain places in the code, one of which was in the function preamble.  In this system a goroutine that avoided (deliberately or by accident) any of the "co-operative" scheduling points could hog a thread, which could have nasty consequences for the runtime, especially garbage collection.
+
+Using the `//go:nosplit` directive allowed a goroutine to avoid the function call "co-operative" scheduling point.
+
+Due to some amazing work of the Go Authors, goroutines are preemptively scheduled (since Go 1.14?).  There is no longer any way a goroutine can prevent itself from being descheduled.
+
+## When to use //go:nosplit
+
+The `//go:nosplit` directive is used quite a bit by low-level standard library functions.  Apart from its performance advantage, this directive is essential for some runtime functions that deal with memory allocation, since resizing the stack requires (re)allocation and this could lead to infinite recursion.
+
+This should not be a consideration for any functions you write. The only advantage to using `//go:nosplit` would be to eliminate the preamble making the functions slightly smaller and faster.
+
+In the past the directive was also used to prevent the goroutine from being "descheduled" on entry to the function.  This no longer works since goroutines are preemptively scheduled.
+{: .notice--warning}
 
 # //go:norace
 
@@ -217,7 +358,7 @@ Note: if you are not making use of the **Race Detector** then you probably shoul
 <details markdown="1">
 <summary>Data Races</summary>
 <br/>
-In lots of ways Go avoid all sorts of problems.  One way is that it is usually hard to introduce undefined behaviour (unlike the myriad of ways you can do it in C/C++ :).  But there is one easy way in Go, just by using the `go` keyword.  This code is perfectly safe:
+In lots of ways Go avoids all sorts of problems.  One way is that it is usually hard to introduce undefined behaviour (unlike the myriad of ways you can do it in C/C++ :).  But there is one easy way in Go, just by using the `go` keyword.  This code is perfectly safe:
 
 ```go
 func main() {
@@ -237,7 +378,11 @@ func main() {
 }
 ```
 
-**Race Detector**
+---
+</details>
+<details markdown="1">
+<summary>Race Detector</summary>
+<br/>
 
 Concurrent code in Go is simpler and far less prone to data races than other languages when done properly (see [Share Memory By Communicating](https://go.dev/blog/codelab-share)), but accidents still happen.
 
@@ -250,24 +395,27 @@ To enable race detection just build your code with the `-race` command line opti
 Why run it in production?  The race detector will only detect potential races in code paths that are executed (see [Data Race Detector](https://go.dev/doc/articles/race_detector)).  The best way to detect data races that might occur in production is to run it there.
 
 One way to cope with the extra burden might be to only run the slower version at quiet times, as long as it still represents typical usage.  If you are running multiple instances behind a load-balancer you could permanently run one instance with race detection turned on, leaving it off for the others.
+
+---
 </details>
+<br/>
 
 ## When to use //go:norace
 
-Should you us it?  The first thing to note is that this directive has no effect unless you have built the code using race-detection 
+Should you use it?  The first thing to note is that this directive has no effect unless you have built the code with race-detection 
 enabled (using the `-race` command line option).
 
-Common advice is not to use `//go:norace` since the race detector never produces false positives.  My opinion is that it can be useful if you are using race detection in production.  Turning it off for a function that is executed many times in an inner loop would give a large boost to performance.
+Common advice is not to use `//go:norace` since the race detector never produces false positives.  My opinion is that it can be useful if you are using race detection **in production**.  Turning it off for a function that is executed many times in an inner loop would give a large boost to performance.
 
-That said, I would **never** use this directive on a function _unless there is absolutely no chance of a data race_ (even allowing for possible future code changes).  For example, it would be safe for a "pure" function -- one that only uses local variables.
+That said, I would **never** use this directive on a function _unless there is absolutely no chance of a data race_ (even allowing for possible future code changes).  For example, it would be safe for a "pure" function -- i.e. does not have side effects.
 
 # //go:noinline
 
 This directive signals that the following function should **not** be inlined.  Inlining is a very important optimization feature of the compiler.
 
-## Performance Optimization
+## Optimization
 
-Optimization is reorganizing the initial "draft" of the code the compiler generates to be more efficient in some way.  It is essential for all compilers do some sort of basic optimizations.  Over the years the Go compiler has made incremental improvements to optimization including the recent PGO added in Go 1.21 - see [Profile Guided Optimization](https://go.dev/doc/pgo).
+Optimization is where the compiler reorganizes the initial "draft" of the code that it generated to be more efficient in some way.  All compilers do some sort of basic optimizations.  Over the years the Go compiler has made incremental improvements to optimization including the recent PGO added in Go 1.21 - see [Profile Guided Optimization](https://go.dev/doc/pgo).
 
 One of the most important optimizations is inlining.  Not only does it save function call overhead of the inlined function, but it enables and assists other types of optimizations.
 
@@ -280,7 +428,7 @@ Inlining is the process of using the code of a function call "in-line" within th
 
 **Function Call Overhead**
 
-With any function call there is overhead in pushing parameters (or loading them into registers), saving/restoring the stack frame, jumping and returning, etc.  Each function in Go (as discussed above in [//go:nosplit](#go-nosplit) also needs a "pre-amble" to check such things like if there is enough stack space.
+With any function call there is overhead in pushing parameters (or loading them into registers), saving/restoring the stack frame, jumping and returning, etc.  Each function in Go (as discussed above in [//go:nosplit](#go-nosplit)) also needs a "preamble" to check such things like if there is enough stack space.
 
 All these things are small but can add up, particularly for a function that is called a lot.
 
@@ -310,11 +458,27 @@ Whether a function should be inlined is extremely complicated.  For example, it 
 The rules on how functions are inlined in Go are often tweaked between releases, but as a rule of thumb if a function is small and called a lot then it is a good candidate; but **not** if it's big and called from many different places.
 
 Finally, I'll just mention how (Go 1.21's) PGO benefits from code inlining.  The profiling performed as the first step of PGO allows the compiler to better decide what functions should be inlined.
+
+---
 </details>
+<br/>
+
+There are several compiler flags that control inlining.  When building a Go program these are specified using the `-gcflags` (Go compiler flags) option.  Use the `-l` option to disable inlining or use the `-N` option to disable all optimizations (not just inlining).  To ask the compiler to do more inlining using `-l -l` and even `-l -l -l`.  You can use the `-m` option to check all optimizations including inlining.
+
+Here is an example of building using maximum inlining and displaying the effect:
+
+```shell
+$ go build -gcflags "-l -l -l -m"
+.\main.go:16:6: can inline a
+.\main.go:44:6: can inline main
+.\main.go:47:12: inlining call to add
+.\main.go:149:12: inlining call to errors.New
+....
+```
 
 ## When to use //go:noinline
 
-`//go:noinline` is most cmmonly used with benchmarking.  For example, I recently wanted to compare the performance of different implementations of the same facility.  One of the implementations used recursion (so was not able to be inlined), but I wanted to test my other implementation with and _without_ inlining just to understand where the time was being spent.
+`//go:noinline` is most commonly used with benchmarking.  For example, I recently wanted to compare the performance of different implementations of the same facility.  One of the implementations used recursion (so was not able to be inlined), but I wanted to test my other implementation with and _without_ inlining just to understand where the time was being spent.
 
 In production, you might want to turn off inlining if you have a relatively large function called from many different places, and you suspect it is bloating the size of your code.  The first thing is to check whether (and how often) it is being inlined using the `-gcflags -m` command line option.  For example, this checks if and where `add()` is being inlined:
 
@@ -325,9 +489,9 @@ $ go build -gcflags -m 2>&1 | grep "inlining call to add"
 ...
 ```
 
-Since `add` is inlined you would next check the size of the executeable file with and without inlining of the function.
+Since `add` is inlined you would next check the size of the executable file with and without inlining of the function.
 
-You might also want to selectively control where a function is inlined.  Say you have a function that is called in many places but only in one place (eg innermost loop)) is performance critical.  The only way to (currently) do this is to have two variations.
+You might also want to selectively control where a function is inlined.  Say you have a function that is called in many places but only in one place (eg. innermost loop)) is performance critical.  The only way to (currently) do this is to have two variations.
 
 ```go
 // addInlined is only used in performance critical code
@@ -462,4 +626,4 @@ As the Go language has developed, especially with the addition of generics, the 
 
 Compiler directives are interesting though you may never need to use them.  Those that I find the most useful are `//go:debug` and `//go:build`. The recently added capabilities of `//go:debug` add to Go's amazing compatibility features.  Unfortunately, I did not have enough time to cover conditional compilation (`//go:build`) but I will do very soon in my next post.
 
-I have tried to shows uses for some of the other directives but most of the time you won't need them. If you do use them it is important to understand their persnickety syntax.  If you get it wrong you probably won't get an error message, so you need to verify that it had an effect (eg use the `-gcflags -m` build flags to verify that `//go:noinline` had an effect).
+I have tried to show uses for some of the other directives but most of the time you won't need them. If you do use them it is important to understand their persnickety syntax.  If you get it wrong you probably won't get an error message, so you need to verify that it had an effect (eg use the `-gcflags -m` build flags to verify that `//go:noinline` had an effect).
