@@ -1,7 +1,7 @@
 ---
 title: Compiler Directives
 last_modified_at: 2023-09-10T23:26:02+10:00
-excerpt: "The new **//go:debug** directive enhances Go's backward compatibility even more. Plus I look at some recent changes to the language that affect some directives."
+excerpt: "A look at all of Go's _pragmas_ (except build tags). How **//go:debug** directive enhances Go's backward compatibility. Plus recent changes to the language that affect some directives."
 toc: true
 toc_sticky: true
 categories: [language,directives]
@@ -152,7 +152,7 @@ I have always found that each Go release does an amazing job of backward compati
 
 Unfortunately, changes sometimes need to be made to Go that break backward compatibility.  This is not done lightly.  It's usually to address some bug, or vulnerability.  These changes can break existing code that depends on the old behaviour.
 
-Luckily, Go has (for many years) allowed you to get the old behaviour for at least 2 years even when building with the latest Go release.  This was done by adding a setting to the GODEBUG environment variable - see (Go Backwards Compatibility and GODEBUG)[https://go.dev/doc/godebug].
+Luckily, Go has (for many years) allowed you to get the old behaviour for at least 2 years even when building with the latest Go release.  This was done by adding a setting to the GODEBUG environment variable - see [Go Backwards Compatibility and GODEBUG](https://go.dev/doc/godebug).
 
 More recently, even more control was added by Russ Cox (see [Backward Compatibility, Go 1.21, and Go 2](https://go.dev/blog/compat)) including the `//go:debug` directive.
 
@@ -160,9 +160,9 @@ More recently, even more control was added by Russ Cox (see [Backward Compatibil
 
 Go has always had certain environment variables that are used to control how your program runs.  Usually these control some aspect of the runtime system (eg `GOGC`, `GOMAXPROCS`, etc).  `GODEBUG` is another that originally triggered debug information by way of individual settings such as `gctrace` (trace info. on garbage collections), `schedtrace` (goroutine scheduling), etc.
 
-Since GODEBUG just consisted of a list of key=value pairs it quickly gathered settings to control the runtime and parts of the standard library, including ways to retain old behaviour, when a change that broke backward was deemed essential.
+Since GODEBUG just consisted of a list of key=value pairs it quickly gathered settings to control the runtime and parts of the standard library, including ways to retain old behaviour, when a change that broke backward compatibility was deemed essential.
 
-For example, there was a fix to avoid a possible security vulnerability in Go 1.15 which broke a lot of production software.  To enable the old behaviour in Go 1.15 (and the next few releases) you could use the `x509ignoreCN=0` setting.  This would allow your software to continue to work, then fixed at a later time.
+For example, there was a fix to avoid a possible security vulnerability in Go 1.15 which broke a lot of production software.  To enable the old behaviour in Go 1.15 (and the next few releases) you could use the `x509ignoreCN=0` setting.  This allowed software to continue to work, allowing more time to address the issue properly.
 
 ```shell
 export GODEBUG=x509ignoreCN=0
@@ -198,7 +198,9 @@ package main
 Note that you can verify the `//go:debug` directives that were used when a program was built using `go list` like this:
 
 ```shell
+{% raw %}
 $ go list -f '{{.DefaultGODEBUG}}'
+{% endraw %}
 panicnil=1
 ```
 
@@ -230,7 +232,9 @@ Remember that `//go:debug` settings apply to the whole program.  You can't use d
 To check that your `//go:debug` directives were effective use `go list`.
 
 ```shell
+{% raw %}
 $ go list -f '{{.DefaultGODEBUG}}'
+{% endraw %}
 ```
 
 # //go:noescape
@@ -314,34 +318,46 @@ The `//go:nosplit` turns off this preamble. But it is clever enough to do so saf
 ## Stack Resizing and the Red Zone
 
 Originally in Go, when the stack needed to be expanded a new block of stack was added (in a sort of linked list).  That is, the stack, which was just one block, was "split" in two.  Due to different issues the way the Go stack grows was changed.  Now, a new bigger block is allocated on the heap and the old stack is copied into it.  So **nosplit** is a bit of a misnomer since the stack is never _split_.
+{: .notice--info}
 
-The first thing to know about Go stacks is that the runtime always keeps a little bit of empty space above the part of the stack that is in use.  This is called the **red zone**.  The size of the red zone is about 700 bytes, but can vary between releases and for other reasons. 
+Althugh stacks will grow, when necessry, the runtime always keeps a little bit of empty space above the top of the stack (or below the bottom, in architectures where the stack grows downwards).  This is called the **red zone**.  The size of the red zone is about 700 bytes, but can vary between releases and for other reasons.
 
-The red zone is needed for a few reasons: to allow the runtime a bit of space to handle interrupts.  More relevant is that it can also be used by Go functions (typically low-level standard library functions).  If a function is preceded by the `//go:nosplit` directive it does not get a preamble, which means the goroutine's stack cannot be expanded.  Consequently, there are some restrictions on the size of its stack frame.
+The size of the red zone is fixed at compile time.
+{: .notice--warning}
+
+The red zone is needed for a few reasons: to allow the runtime a bit of space to handle interrupts.  More relevant is that it can also be used by Go functions (typically low-level standard library functions).  If a function is preceded by the `//go:nosplit` directive it does not get a preamble, which means the goroutine's stack will never be expanded when that function is called.  Of course, there are some restrictions on the size of the function's stack frame (memory used by non-escaping local variables).
 
 In the best case the stack frame size can be up to the size of the red zone, but if the function calls, or is called by other function(s) that also use `//go:nosplit` then the allowed frame size is commensurately reduced.
 
 By analysing the call trees of all functions that use the `//go:nosplit` directive the compiler can determine if the red zone would be exceeded at compile time.  If you add the `//go:nosplit` directive to a function which would cause the red zone to be exceeded the compiler will give you an error.
 
-## Goroutine Preemption
+<details markdown="1">
+<summary>Goroutine Preemption</summary>
+<br/>
 
-A slight detour is required here because the function preamble was also, in the past, involved in go-routine scheduling.
+A slight detour is required here because the function preamble has been (in earlier release of Go) involved in go-routine scheduling.
 
 If there are more goroutines in a running Go program than there are (unblocked) threads allocated to the programs (as determined by GOMAXPROCS) then the Go runtime has to schedule the goroutines onto the available threads.
 
-Up until Go 1.14 this scheduling was "co-operative" and only done at certain places in the code, one of which was in the function preamble.  In this system a goroutine that avoided (deliberately or by accident) any of the "co-operative" scheduling points could hog a thread, which could have nasty consequences for the runtime, especially garbage collection.
+Up until Go 1.14 this scheduling was "co-operative" and only done at certain places in the code, one of which was in the function preamble.  In this system a goroutine that avoided (deliberately or by accident) any of the "co-operative" scheduling points could hog a thread, which could have nasty consequences for the runtime, often completely freezing the program (halting all goroutines!) when the runtime is trying to start a garbage collection.
 
 Using the `//go:nosplit` directive allowed a goroutine to avoid the function call "co-operative" scheduling point.
 
-Due to some amazing work of the Go Authors, goroutines are preemptively scheduled (since Go 1.14?).  There is no longer any way a goroutine can prevent itself from being descheduled.
+Due to some amazing work of the Go Authors, goroutines are preemptively scheduled (since Go 1.14?).  There is no longer any way a goroutine can do these nasty things to the runtime.
+
+---
+</details>
+<br/>
+
+The `//go:nosplit` directive is used quite a bit by low-level standard library functions.  Apart from its performance advantage, this directive is essential for some runtime functions that deal with memory allocation.  If these functions needed to expand the stack they would end up calling themselves whic might lead to infinite recursion.
+
+This should **not** be a consideration for any functions you write.
 
 ## When to use //go:nosplit
 
-The `//go:nosplit` directive is used quite a bit by low-level standard library functions.  Apart from its performance advantage, this directive is essential for some runtime functions that deal with memory allocation, since resizing the stack requires (re)allocation and this could lead to infinite recursion.
+The only advantage to using `//go:nosplit` would be to eliminate the preamble making the functions slightly smaller and faster.  However, the benefit would be negligible, except for small functions that are called a lot, but these would more than likely be automatically inlined.  So it would only be useful for an often-called function that is not inlined for some reason.
 
-This should not be a consideration for any functions you write. The only advantage to using `//go:nosplit` would be to eliminate the preamble making the functions slightly smaller and faster.
-
-In the past the directive was also used to prevent the goroutine from being "descheduled" on entry to the function.  This no longer works since goroutines are preemptively scheduled.
+In the past the directive was also used to prevent the goroutine from being "descheduled" on entry to the function (see **Goroutine Preemption** above).  This no longer works since goroutines are preemptively scheduled.
 {: .notice--warning}
 
 # //go:norace
@@ -558,7 +574,7 @@ Note that `//go:linkname` can be used for the same purpose.
 
 **//go:compile**
 
-This is similar to `//go:linkname` but renames the object-file symbol rather than creating an alias.  This example, make the function `F` externally visible as `f`.
+This is similar to `//go:linkname` but renames the object-file symbol rather than creating an alias.  This example, makes the function `F` externally visible as `f`.
 
 ```go
 //go:compile F f
@@ -570,7 +586,7 @@ func F() {
 
 ## // Code generated (DO NOT EDIT)
 
-When Go code is generated by other software you should indicate this with a line at the top of the source file like this:
+If you write software that generates Go code you should indicate this with a line at the top of the source file like this:
 
 // Code generated ... DO NOT EDIT.
 
