@@ -1,6 +1,6 @@
 ---
 title: Compiler Directives
-last_modified_at: 2023-09-10T23:26:02+10:00
+last_modified_at: 2023-09-15T23:26:02+10:00
 excerpt: "A look at all of Go's _pragmas_ (except build tags). How **//go:debug** directive enhances Go's backward compatibility. Plus recent changes to the language that affect some directives."
 toc: true
 toc_sticky: true
