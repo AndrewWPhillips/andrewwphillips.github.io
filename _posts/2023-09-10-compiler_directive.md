@@ -1,6 +1,6 @@
 ---
 title: Compiler Directives
-last_modified_at: 2023-09-15T23:26:02+10:00
+last_modified_at: 2023-09-23T10:26:02+10:00
 excerpt: "A look at all of Go's _pragmas_ (except build tags). How **//go:debug** directive enhances Go's backward compatibility. Plus recent changes to the language that affect some directives."
 toc: true
 toc_sticky: true
@@ -72,13 +72,17 @@ Go use the traditional method of hiding them in comments.  I'm not sure why.  Th
 
 * to be like other languages (unlikely given Go's contrarian approach)
 * to discourage their use, as they were mainly added for use by the standard library
-* to avoid corrupting the purity of the language
-* so as not to burden anticipated alternative implementations (which can ignore them)
+* to avoid corrupting the "purity" of the language
+* so they can simply be ignored by (real or anticipated) alternative implementations (like gccgo)
 * so they can be removed in a later version of Go (unlikely to happen I think)
 
 **import "unsafe"**
 
 The import of the `unsafe` "package" is really just a compiler directive.  There is no actual package of that name.  It just flags to the compiler to allow certain "unsafe" features.  (There are probably more unsafe features than you think -- which I might cover in a future post.)
+
+**import "C"**
+
+Similarly, importing the `C` package is a directive to enable "CGO".
 
 ---
 </details>
@@ -195,7 +199,7 @@ package main
 ...
 ```
 
-Note that you can verify the `//go:debug` directives that were used when a program was built using `go list` like this:
+Note that you can verify the `//go:debug` directives in effect using `go list` like this:
 
 ```shell
 {% raw %}
@@ -229,7 +233,7 @@ Remember that `//go:debug` settings apply to the whole program.  You can't use d
 **Important:** To have any effect a `//go:debug` setting **must** appear before the `package main` declaration, or it will be **ignored**.  It can be added to any .go file of the main package, but if you have multiple instances of the same setting (perhaps in different .go files) you will get a build error, **even if they use the same value**.
 {: .notice--warning}
 
-To check that your `//go:debug` directives were effective use `go list`.
+To check that your `//go:debug` directives are working use `go list`.
 
 ```shell
 {% raw %}
