@@ -7,7 +7,7 @@ categories: [language,types]
 tags: [reference,value,type,comparability,pitfall,gotcha]
 header:
   overlay_image: "/assets/images/Pointer.jpg"
-  overlay_filter: 0.5
+  overlay_filter: 0.4
   caption: "Image: [Noun Project](https://thenounproject.com/)"
 permalink: /blog/go-ref-types.html
 ---
