@@ -17,7 +17,7 @@ Build constraints or _tags_ allow you to control which source files are used to 
 
 Conditional compilation is less important than it has been in the past due to advances in hardware.  Nowadays, you might use a run-time flag to handle what may have been traditionally handled at compile-time.  I explain this fully in **Background** below.  However, conditional compilation still has its uses, such as for targeting different operating systems.
 
-Unlike other languages, Go only gives you very coarse control of what is built -- i.e. you can only include/exclude at the file level, rather than individual lines of code.  This may seem crude, but it actually makes it far easier to understand what code is being built.  Plus other features of Go (eg empty functions essentially disappear, due to inlining), make it very effective.
+Unlike other languages, Go only gives you very coarse control of what is built -- i.e. you can only include/exclude at the file level, rather than individual lines of code.  This may seem crude, but it actually makes it far easier to understand what code is being built.  Plus other features of Go (e.g. empty functions essentially disappear, due to inlining), make it very effective.
 
 # Background
 
@@ -33,7 +33,7 @@ A common use in C, is to create separate debug and release versions.  The debug 
 
 When C's approach to conditional compilation was invented it was done on a line-by-line basis using the pre-processor.  Perhaps one reason it was done this way, rather than the approach Go uses, is that C compilers (for at least a decade) did not have the benefit of inline functions.  More likely, is that conditional compilation on a file-by-file, instead of line-by-line, basis was seen as too inflexible.
 
-Even in simple cases, the intermingling of conditional compilation with the actual code can make it difficult to understand.  More complex cases using multiple nested conditions etc, can **lead to code that's unfathomable**.
+Even in simple cases, the intermingling of conditional compilation with the actual code can make it difficult to understand.  More complex cases using multiple nested conditions etc., can **lead to code that's unfathomable**.
 
 ---
 </details>
@@ -95,7 +95,7 @@ There are also these predefined tags:
 
 ## Setting Custom Tags
 
-It's a simple matter to define your own tags when using the build, run, etc. tools, by using the `-tags` command line option.  This example set two tags:
+You can define your own tags when using the build, run, etc. tools, by using the `-tags` command line option.  This example set two tags:
 
 ```shell
 $ go build -tags postgres,unenhanced ...
@@ -110,7 +110,7 @@ package example
 
 # Why use Build Tags?
 
-**Do you really need to use build tags**?  First, consider using a run-time flag instead of conditional compilation.  You'll need to be able to configure it somehow such as a command line flag, or as part of a configuration file.<br/><br/>Using a run-time flag simplifies the build and installation process since you don't need alternative versions of the executeable.
+**Do you really need to use build tags**?  First, consider using a run-time flag instead of conditional compilation.  You'll need to be able to configure it somehow such as a command line flag, or as part of a configuration file.<br/><br/>Using a run-time flag simplifies the build and installation process since you don't need alternative versions of the executable.
 {: .notice--info}
 
 Here are a few places where you might/must use it.
@@ -135,11 +135,11 @@ $ go tool dist list
 
 There are further predefined build tags.  For example, you can use `unix` if your code targets any Unix or Unix-like operating system such as Linux.
 
-These tags are used to tailor code for specific environment(s).  For example, you may only have a features that work on Linux.
+These tags are used to tailor code for specific environment(s).  For example, you may have a feature that only works on Linux.
 
-A less common need is to target specific processors (architectures).  Generally, this sort of stuff is handled for you by the standard library, but, as an example, you might be implementing a new communications protocol and need to allow for the order of bits of an integer (so called endianness) which depends on the architecture.
+A less common need is to target specific processors (architectures).  Generally, this sort of stuff is handled by the standard library, but, as an example, you might be implementing a new communications protocol and need to allow for the order of bits of an integer (so called endianness) which depends on the architecture.
 
-A common use (as in the Go standard library) is to implement alternative implementations to handle differences between operating systems.  In other words, you build separate executeables for different targets by cross-compiling for different operating systems and/or architectures by setting the **GOOS** and **GOARCH** environment variables.
+A common use (as in the Go standard library) is to use alternative implementations to handle differences between operating systems.  In other words, you build separate executables for different targets by cross-compiling for different operating systems and/or architectures by setting the **GOOS** and **GOARCH** environment variables.
 
 You can combine tags, for example to target one specific operating system and architecture like this:
 
@@ -153,9 +153,9 @@ Though this example would be better handled using a `..._windows_amd64.go` file 
 
 ## File Name Suffixes
 
-When you have a simple requirement for targeting a single OS, architecture or OS/architecture combination, a better alternative is to use file name suffixes. In this case you just add the name of the tag to the end of the file name (before the .go extension), preceded by an underscore. For example, if a file is only to be included for an executable targeting Linux just use a name like `source_linux.go`.
+When you have a simple requirement for targeting a single OS, architecture or OS/architecture combination, a better alternative is to use file name suffixes. In this case you just add the name of the tag to the end of the file name (before the .go extension), preceded by an underscore. For example, if a file is only to be included for an executable targeting Linux just use a name like `filename_linux.go`.
 
-There is no need to add the `//go:build` directive.  In fact this is faster as the `go build` command can simply inspect the file name.  The file does is not even opened if it is not required.
+There is no need to add the `//go:build` directive.  This is faster than using the directive since the `go build` command can simply inspect the file name and does not even need to open the file.
 
 There are 3 ways this can be specified:
 * specific operating system
@@ -191,7 +191,7 @@ func dbSave(p *dbRecord) error {
 	...
 }
 ```
-Then to select the desired database code just use the `-tags` command line option to Go's build, etc commands.
+Then to select the desired database code just use the `-tags` command line option to Go's build, etc. commands.
 
 ```shell
 $ go build -tags cockroach ...
@@ -318,15 +318,15 @@ $ go version example.exe
 example.exe: go1.17.10
 ```
 
-Even cooler is that (since Go 1.18) some version control information is embedded into the binary, including the time of last checkin and whether there were any changes since.  This is obtained from Git, Mercurial, etc (depending on which version control you are using).
+Even cooler is that (since Go 1.18) some version control information is embedded into the binary, including the time of last checkin and whether there were any changes since.  This is obtained from Git, Mercurial, etc. (depending on which version control you are using).
 
 Also included are the values of certain environment variables that may have affected how the program was built.
 
 You can see it using `go version -m` like this:
 
 ```shell
-$ go version -m example.exe
-example.exe: go1.21.0
+$ go version -m example
+example.exe: go1.22.4
         path    github.com/andrewwphillips/example
         ...
         build   GOARCH=amd64
