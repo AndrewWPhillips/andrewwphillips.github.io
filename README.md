@@ -14,3 +14,7 @@ This is left over from the original readme - not sure if it's usefult yet.
 # Testing
 
 $ bundle exec jekyll serve --drafts
+
+# View the web site
+
+https://andrewwphillips.github.io/

@@ -1,6 +1,6 @@
 ---
 title: "CPU Profiling and Flame Graphs"
-last_modified_at: 2023-12-31T21:26:02+10:00
+last_modified_at: 2023-12-31T23:00:01+10:00
 excerpt: "<br/><br/><br/><br/>Easily track down performance problems with flame graphs."
 toc: true
 toc_sticky: true
@@ -119,7 +119,6 @@ Just for completeness here are the other types of profiles and a short descripti
 
 See the Go Blog [Profiling Go Programs - Russ Cox](https://go.dev/blog/pprof) for more details.  Note that (except that it does not cover flame graphs), this is still relevant despite being written in 2011.
 
-
 **Execution Tracer**
 
 At a somewhat lower level is the Go **trace tool**.  Unlike profiling, it doesn't sample your code, but records _everything_ that your goroutines are doing.  It allows you to see when and where (which thread) goroutines are active, plus how they interact with each other and the garbage collector.
@@ -128,6 +127,14 @@ This is a brilliant tool which AFAIK is unique to Go.  It allows you to understa
 
 **Note**: The execution tracer is not to be confused with tracing packages like [golang.org/x/net/trace](https://pkg.go.dev/golang.org/x/net/trace) (from the Go authors) or [Open Telemetry](https://github.com/open-telemetry/opentelemetry-go) (from the Open Telemetry Project). It's a low-level facility requiring no code changes (except perhaps to invoke it).  In contrast, traces (such as used by Open Telemetry) require you to instrument your code to allow you to follow the flow of data through the application, or even between applications if using distributed traces.
 {: .notice--info}
+
+**Other Go Runtime Information**
+
+The standard library **runtime** and **debug** packages allow you to get information about what the runtime is doing, such as metrics and statistics about goroutines, memory allocations/collections etc.
+
+The **GODEBUG** environment variable can be set to a string of <key>=<value> pairs of settings.  Traditionally, this has been used to control features of the Go runtime including logging of garbage collections, goroutine scheduling events, etc.  (More recently it has been put to other uses such as controlling backwards compatibility of possible breaking language/library changes - see [Go, Backwards Compatibility, and GODEBUG](https://go.dev/doc/godebug))
+
+See [Go Diagnostics](https://go.dev/doc/diagnostics) for more on `runtime.NumGoroutine()`, `runtime.ReadMemStats()`, `debug.ReadGCStats()`, `debug.Stack()`, `GODEBUG`, etc.
 
 ---
 </details>
@@ -176,7 +183,7 @@ Also note that if you are **not** running the default web-server then you will h
     mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 ```
 
-Once the application (including the webserver) is running you can use one of the above HTTP endpoints to generate a profile, eg using `curl`.  Since we want a CPU profile we will use `/debug/pprof/profile` then use the **pprof tool**.
+Once the application (including the webserver) is running you can use one of the above HTTP endpoints to generate a profile, e.g. using `curl`.  Since we want a CPU profile we will use `/debug/pprof/profile` then use the **pprof tool**.
 
 ```shell
 $ curl --output cpu.pprof http://localhost:6060/debug/pprof/profile?seconds=5
@@ -228,7 +235,7 @@ Of course, _all_ goroutines of the process are profiled until `StopCPUProfile()`
 
 Once you have created the `cpu.pprof` file you can analyse and visualize it as discussed below.
 
-## Profile package from Dave Cheney
+## Dave Cheney's Profile package 
 
 Some time ago Dave Cheney created a **profile** package to make it even simpler to run the Go profiler simply by calling `profile.Start()` to begins profiling and `Stop()` to finish. A .pprof file is created in your "TEMP" directory and the name is logged (written to stderr).
 
@@ -270,13 +277,17 @@ $ go test -bench=. -cpuprofile cpu.pprof
 $ go tool pprof cpu.pprof
 ```
 
+## Converting Other Formats to Pprof
+
+Another way to get a .pprof file is to convert output from the Linux profiler **perf**.  See [perf_data_converter](https://github.com/google/perf_data_converter).
+
 # Inspecting Profiles
 
 There are lots of ways to examine profiles (.pprof files) most of which involve the Go **pprof tool**, such as:
 
 1. use options like `-top` and `-peek` for a text report
 2. use `-png`, `-svg`, `-pdf`, etc to visualize as a graph
-3. use `-dot`, `-callgrind`, etc - convert to a different format
+3. use `-dot`, `-callgrind`, etc. - convert to a different format
 4. without options to invoke an interactive CLI tool
 5. using the `-http` option to invoke an interactive GUI mode in a web browser (incl. flame graphs!)
 
@@ -284,7 +295,7 @@ You can also generate or view a flame graph directly from a .pprof file, as I ex
 
 ## Text Reports
 
-The **pprof tool** outputs a text report when you use the `-text`, `-top`, `-peek`, etc command line flags.  These have the same information as the corresponding commands in the [interactive CLI](#interactive-cli).
+The **pprof tool** outputs a text report when you use the `-text`, `-top`, `-peek`, etc. command line flags.  These have the same information as the corresponding commands in the [interactive CLI](#interactive-cli).
 
 ## Graphs 
 
@@ -324,7 +335,7 @@ flat  flat%   sum%        cum   cum%
 480ms 38.40% 94.40%      490ms 39.20%  main.sum (inline)
 ```
 
-For cumulative times `main()` will be at the top as everything (except initialisation) runs beneath it.  but we can ee rom this that the functions `fact()` and `sum()` use almost all the time within `main()`.
+For cumulative times `main()` will be at the top as everything (except initialisation) runs beneath it, but we can see from this that the functions `fact()` and `sum()` use most of the cumulative time within `main()`.
 
 ### Peek command
 
@@ -352,9 +363,9 @@ Here we can see that `sum()` is only called from `main()` and only calls `runtim
 
 ### Web command
 
-The web command opens a visual graph in your web browser.  This is just a simple graph and is **not** the same as (and not as useful as) the [Interactive Web UI](#interactive-web) discussed next.
+The web command opens a visual graph in your web browser.  This is just a simple graph and is **not** the same as (and not as useful as) the [Interactive Web UI](#interactive-web-ui) discussed next.
 
-## Interactive web
+## Interactive Web UI
 
 If you specify the "-http <address>" option to the pprof tool then an interactive web page is created.  Once you go to the address in your web browser you will see many useful options in the drop-down menus including:
 
@@ -387,8 +398,8 @@ For completeness here are the ways you can use flame graphs with Go:
   * this requires you to have Perl installed
 * Uber provides [Go Torch](https://github.com/uber/go-torch) to generate profiles and view a flame graph
   * using the containerised version is simplest but requires docker to be installed
-  * see [Proiling Go Applications with Flame Graphs](https://brendanjryan.com/2018/02/28/profiling-go-applications.html) for details
-* Use the flame graph(s) provided by interactive web UI of the **pprof tool** as described [above](#interactive-web).
+  * see [Profiling Go Applications with Flame Graphs](https://brendanjryan.com/2018/02/28/profiling-go-applications.html) for details
+* Use the flame graph(s) provided by interactive web UI of the **pprof tool** as described [above](#interactive-web-ui).
 * Upload the file to http://flamegraph.com/
 * Drop the .pprof file on https://www.speedscope.app
 
@@ -401,7 +412,7 @@ Flame graphs are typically drawn from the bottom up.  When drawn from the top do
 
 To demonstrate, I wrote a test program with a `fact()` function that multiplies all the numbers, up to a value, together (ie, calculates the factorial), and a`sum()` function that adds all the numbers up to a value.  I call the functions millions of times in a loop to ensure that I got a useful result.  
 
-**Note**: I had to increase the `count` constant more than expected.  With smaller values the resulting profile showed nothing at all.  If you have a fast CPU then you may need to increase `count` even more.
+**Note**: I had to increase the loop count (`1e8` in the code) more than expected.  With smaller values the resulting profile showed nothing of use as only 1 or 2 samples were taken.  If you have a fast CPU then you may need to increase it even more.
 {: .notice--info}
 
 ```go
@@ -413,18 +424,14 @@ import (
 )
 
 func main() {
-    const count = 1e8
 	defer profile.Start().Stop()
 
 	var i, s, f int
-	for i = 0; i < count; i++ {
+	for i = 0; i < 1e8; i++ {
 		s = sum(20)
-	}
-	fmt.Println(s)
-	for i = 0; i < count; i++ {
 		f = fact(20)
 	}
-	fmt.Println(f)
+	fmt.Println(s, f)
 }
 
 func sum(n int) int {
@@ -451,11 +458,10 @@ To view the flame graph, run the program and then open the resulting profile in 
 ```shell
 $ go run main.go
 2023/12/31 12:26:15 profile: cpu profiling enabled, /temp/profile3084922120/cpu.pprof
-210
-2432902008176640000
+210 2432902008176640000
 2023/12/31 12:26:31 profile: cpu profiling disabled, /temp/profile3084922120/cpu.pprof
 
-$ go tool pprof -http :6060 main.pprof
+$ go tool pprof -http :6060 /temp/profile3084922120/cpu.pprof
 Serving web UI on http://localhost:6060
 ```
 
@@ -478,7 +484,7 @@ Of course, the above `sum()` function could be made a lot faster like this:
 
 ```go
 func sum(n int) int {
-	return (n * (n - 1)) / 2
+	return (n * (n + 1)) / 2
 }
 ```
 
@@ -488,12 +494,28 @@ With this change the flame graph does not even show that the `sum()` function is
 
 # Understanding Flame Graphs
 
-Flame graphs make it easy to see the relationship between callers and callees and compare their flat and cumulative times.  For example, many performance issues are easily seen as "plateaus" - flat areas at the top of the graph with no block (called functions) directly above.  This indicates that a function is using a lot of CPU time, perhaps in a loop, which (if unexpected) could be an opportunity for optimization.
+Flame graphs make it easy to see where CPU time is being consumed simply by looking at the width of the boxes. It also make it easy to see the relationship between callers and callees and compare their flat and cumulative times. 
 
-Remember that the horizontal axis represents the amount of (CPU) time spent in a function (and children) but it is not in chronological order.  Any particular block represents _all_ calls of a function with the same call stack.  These calls could have occurred at different times.  [Brenda Gregg's video](https://www.youtube.com/watch?v=VMpTU15rIZY&ab_channel=GOTOConferences) explains this in detail.
+If a function is doing a lot of unnecessary calculations (e.g. a long-running loop) this will appear as a "plateau" in the flame graph - ie, a flat area at the "top" of the graph with no block(s) above - that is, large flat (but not cumulative) time.  If unexpected, this is an opportunity for optimization.
 
-The different **block colours** in most flame graphs don't particularly mean anything, except the same function in different call stacks will have the same colour.  Sometimes, blocks have very different colours or hues to indicate something significant such as different languages or execution environments.
+Alternatively, if a unexpectedly wide block has lots of blocks above it (large cumulative but not flat time) then you need to carefully check the names of called functions to find anything unnecessary, such as excessive logging, or functions that could be optimized.
+
+Note: The different **block colours** in most flame graphs don't particularly mean anything, except the same function in different call stacks will have the same colour.  Sometimes, blocks have very different colours or hues to indicate something significant such as different languages or execution environments.
 {: .notice--info}
+
+**Samples**
+
+You can use flame graphs without understanding how they are created, but it may be useful to understand how they are built from samples.  The Go profiler collects a **sample** every 10 msecs (by default).  Each sample is essentially a stack frame including the name of all functions in the call stack.  BTW you don't need to worry about inlined functions - they are added to the stack frame (by default).
+
+Note: Samples for CPU profiles are taken at 100 Hz (100 times/second).  This can be adjusted using `runtime.SetCPUProfileRate()`.  You might want to change it if you are getting interactions with other events that occur at the same rate (or multiple thereof).  For example, I had a message sent to the server exactly every 100 ms which caused greatly varying CPU profiles simply because of the timing. 
+{: .notice--info :}
+
+When a flame graph is generated it groups all samples that have the same call stack together.  So the horizontal axis shows the CPU time, but because of the grouping the X-axis is **not** in chronological order.  The inventor of flame graphs explains why this grouping is so useful in this video: [Visualizing Performance - The Developers’ Guide to Flame Graphs](https://www.youtube.com/watch?v=VMpTU15rIZY&ab_channel=GOTOConferences).
+
+Each block if a flame graph represents _all_ calls of a function with the same ancestry (call stack). The block immediately below is the parent (caller) and block(s) above are the child(ren) or callee(s). But don't forget that if a function executes quickly and is called rarely then it may never be seen in a profile, because it was lucky enough to never be sampled.
+
+In the **pprof tool** web GUI you can choose to see the number of samples for each block (rather than CPU time) by selecting the **samples** item from the SAMPLE drop-down menu.  To see the number of samples hover the mouse over the block. **WARNING**: If the **root** block (at the bottom of the graph) does not have enough samples then the flame graph will not be very useful. 
+{: .notice--warning :}
 
 # Summary
 
@@ -512,7 +534,7 @@ Most of the time, you know if you have a performance problem, and have a rough i
 
 In a highly concurrent program you may have a performance issue in a _single_ goroutine and all the other, unrelated code will muddy the results.  (Though, in my experience most concurrent software has goroutines that are fairly homogenous.)  In this case you may need to find a way to suspend them or avoid creating lots of goroutines.  Setting GOMAXPROCS to 1 may or may not help.
 
-For simplicity, I just use the **github.com/pkg/profile** package as explained above in [Profile package from Dave Cheney](#profile-package-from-dave-cheney).
+For simplicity, I just use the **github.com/pkg/profile** package as explained above in the [Dave Cheney's Profile package](#dave-cheneys-profile-package).
 
 **net/http/pprof**
 
@@ -520,7 +542,7 @@ The other scenario, that is often encountered, is a continuously running product
 
 Many such backends are/have a web-server (or can easily have one added).  Thence, it is just a matter of importing the **net/http/pprof** package.  When the issue occurs in production you can generate a CPU profile with a simple HTTP request.  Note that importing the **net/http/pprof** package typically has negligible impact on server performance until you request a profile (in which case you probably already have a performance issue).
 
-See the above [net/http/pprof Package](#the-net-http-pprof-package) section for details, especially the **security warning**.
+See the above [Generating CPU Profiles: net/http/pprof package](#the-nethttppprof-package) section for details, especially the **security warning**.
 
 ## Create a flame graph
 
