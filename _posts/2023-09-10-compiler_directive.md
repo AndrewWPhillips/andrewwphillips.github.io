@@ -321,10 +321,11 @@ The `//go:nosplit` turns off this preamble. But it is clever enough to do so saf
 
 ## Stack Resizing and the Red Zone
 
-Originally in Go, when the stack needed to be expanded a new block of stack was added (in a sort of linked list).  That is, the stack, which was just one block, was "split" in two.  Due to different issues the way the Go stack grows was changed.  Now, a new bigger block is allocated on the heap and the old stack is copied into it.  So **nosplit** is a bit of a misnomer since the stack is never _split_.
+**Why "nosplit"?** Originally in Go, when the stack needed to be expanded a new block was added (in a sort of linked list).  The stack, which started as one block, was "split" into two.  Due to different issues the way the Go stack grows was changed.  Since Go 1.3, a new bigger block is allocated on the heap and the old stack is copied into it.  So **nosplit** is a bit of a misnomer since the stack is not
+_split_ anymore.
 {: .notice--info}
 
-Althugh stacks will grow, when necessry, the runtime always keeps a little bit of empty space above the top of the stack (or below the bottom, in architectures where the stack grows downwards).  This is called the **red zone**.  The size of the red zone is about 700 bytes, but can vary between releases and for other reasons.
+Although stacks will grow, when necessary, the runtime always keeps a little bit of empty space above the top of the stack (or below the bottom, in architectures where the stack grows downwards).  This is called the **red zone**.  The size of the red zone is about 700 bytes, but can vary between releases and for other reasons.
 
 The size of the red zone is fixed at compile time.
 {: .notice--warning}
