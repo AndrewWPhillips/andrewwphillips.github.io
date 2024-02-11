@@ -6,15 +6,15 @@ It uses Jekyll (required by Github pages) with Minimal Mistakes theme using [the
 
 # Troubleshooting
 
-## Changes don't appear
+This is left over from the original readme - not sure if it's usefult yet.
 
-- check they are committed AND pushed
-- wait a few minutes
+- [Setting up a Jekyll site with GitHub Pages](https://jekyllrb.com/docs/github-pages/)
+- [Configuring GitHub Metadata](https://github.com/jekyll/github-metadata/blob/master/docs/configuration.md#configuration) to work properly when developing locally and avoid `No GitHub API authentication could be found. Some fields may be missing or have incorrect data.` warnings.
 
-## View drafts
+# Testing
 
 $ bundle exec jekyll serve --drafts
 
-## View the current web site
+# View the web site
 
 https://andrewwphillips.github.io/
