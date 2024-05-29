@@ -1,6 +1,6 @@
 ---
 title: "CPU Profiling and Flame Graphs"
-last_modified_at: 2024-01-15T21:00:01+10:00
+last_modified_at: 2024-05-28T21:00:01+10:00
 excerpt: "<br/><br/><br/><br/>Easily track down performance problems with flame graphs."
 toc: true
 toc_sticky: true
@@ -21,6 +21,9 @@ So I'm going to explain the options and demonstrate **the simplest way to genera
 Part of the confusion is that Go comes with several different tools for analysing runtime performance including benchmarks, sample-based profiling (**pprof tool**), the execution tracer (**trace tool**), etc.  Moreover, there are also several different types of _profiling_.  If you are unclear, I have clarified all this in the [Background](#background)->Go section below.
 
 Today, I'm just looking at profiles - specifically, CPU profiles - how to generate, view and understand them using flame graphs.
+
+**Warning** Traditionally, flame graphs grow upwards, often tapering to points (hence the name).  However, the flame graphs images below grow downwards.  Don't be confused by "vertical" words (top, plateau, etc) which are inverted.
+{: .notice--warning}
 
 # Background
 
@@ -118,7 +121,7 @@ At a somewhat lower level is the Go **trace tool**.  Unlike profiling, it doesn'
 
 This is a brilliant tool which AFAIK is unique to Go.  It allows you to understand how your code is working at a low level.  This is perfect for understanding interactions in highly concurrent software, including performance issues.
 
-**Note**: The execution tracer is not to be confused with tracing packages like [golang.org/x/net/trace](https://pkg.go.dev/golang.org/x/net/trace) (from the Go authors) or [Open Telemetry](https://github.com/open-telemetry/opentelemetry-go) (from the Open Telemetry Project). It's a low-level facility requiring no code changes (except, perhaps, to invoke it).  In contrast, traces (such as used by Open Telemetry) require you to instrument your code to allow you to follow the flow of data through the application, or even between applications if using distributed traces.
+**Note**: The execution tracer is not to be confused with tracing packages like [golang.org/x/net/trace](https://pkg.go.dev/golang.org/x/net/trace) (from the Go authors) or [Open Telemetry](https://github.com/open-telemetry/opentelemetry-go) (from the Open Telemetry Project). It's a low-level facility requiring no code changes (except, perhaps, to invoke it).  For example, Open Telemetry allows you to instrument your code allowing you to follow the flow of data through the application, though you can use it to automatically generate traces for some packages (but not runtime).
 {: .notice--info}
 
 **Other Go Runtime Information**
@@ -143,7 +146,7 @@ There are several different ways to generate profiles in Go.  You can generate a
 
 ## The runtime/pprof package
 
-To programmatically control exactly what code you are profiling you need to use the standard library `runtime/pprof` package.  Call `runtime.StartCPUProfile()` to start CPU profiling and `runtime.StopCPUProfile()`.  You need to pass an `io.Writer` (usually just a file open for writing) to `runtime.StartCPUProfile()`.  For example:
+To programmatically control exactly what code you are profiling you need to use the standard library `runtime/pprof` package.  Call `pprof.StartCPUProfile()` to start CPU profiling and `pprof.StopCPUProfile()`.  You need to pass an `io.Writer` (usually just a file open for writing) to `pprof.StartCPUProfile()`.  For example:
 
 ```go
 	f, err := os.Create("cpu.pprof")
@@ -222,7 +225,7 @@ As mentioned above, you can generate and analyse a profile in one step:
 ```shell
 $ go tool pprof http://localhost:6060/debug/pprof/profile?seconds=5
 Fetching profile over HTTP from http://localhost:6060/debug/pprof/profile?seconds=5
-Saved profile in C:\Users\Andre\pprof\pprof.samples.cpu.004.pb.gz
+Saved profile in <UserPProfDirectory>/pprof.samples.cpu.004.pb.gz
 Type: cpu
 Time: Dec 24, 2023 at 10:19pm (AEDT)
 Duration: 5.01s, Total samples = 10ms (  0.2%)
@@ -415,7 +418,7 @@ For completeness here are the ways you can use flame graphs with Go:
 
 To demonstrate, I wrote a test program (see below) with three functions - `fact()`, `sum()` and `sumPlusFact()`. I call them millions of times in a loop to ensure that I get a good number of samples.
 
-**Note**: I had to increase the loop count more than expected.  With smaller values the resulting profile showed nothing of use as only 1 or 2 samples were taken.  If you try this code on a fast system, **you may need to increase it** even more than `1e8`.
+**Note**: I had to increase the loop count more than expected.  With smaller values the resulting profile showed nothing of use as only 1 or 2 samples were taken.  If you try this code on a fast system, **you may need to increase it** even more than `2e8`.
 {: .notice--warning}
 
 ```go
@@ -481,7 +484,7 @@ Then select **Flame Graph** from the **View** menu.
 
 The width of a block, such as `main.main` represents the **cumulative** time spent in the function.  It is expected that `main()` extends nearly the whole width (apart from a small part for the Go runtime code).  However, most of the cumulative time for `main()` is spent in calls to `fact()`, `sum()` and `sumPlusFact()`.
 
-The **flat** time for `main()` [1.13%] is that small area to the right of the `main.sum` block where there is nothing "above" the `main.main` block.  This is the overhead of the `for` loop.
+The **flat** time for `main()` [1.13%] is that small area to the right of the `main.sumPlusFact` block where there is nothing "above" the `main.main` block.  This is the overhead of the `for` loop.
 
 Note that none of the profile samples caught the execution of `fmt.Println()`, as it's only called once and is fairly quick.
 {: .notice--info}
