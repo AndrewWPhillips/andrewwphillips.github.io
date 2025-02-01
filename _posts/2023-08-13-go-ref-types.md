@@ -296,7 +296,7 @@ The value is still available when `f()` is called at the end of `main()`, as the
 
 While we are on the subject, I just want to explain what is meant by "deep" operations such as **deep copy** and **deep compare**.
 
-In Go, when you copy (eg using `=`) or compare pointers (eg using `==`) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
+In Go, when you copy pointers (eg using `=` etc) or compare pointers (eg using `==`) you are just using the pointer _values_. That is, you are only copying/comparing the memory address (the pointer's value), not the values pointed to.
 
 This is called _shallow_ copying/comparing.  To use the values you must "dereference" the pointer, for a _deep_ operation.
 
@@ -309,7 +309,7 @@ For example, if two pointers point to different variables, they will **not** be 
     log.Println(*p == *q) // true (deep compare)
 ```
 
-Because Go is a "value-based" language, when you copy (by assignment, passing a parameter, returning a value, etc) or compare (using `==`, etc) the compiler uses "shallow" operations.
+Because Go is a "value-based" language, when you copy (by assignment, passing a parameter, etc) or compare (using `==`, etc) the compiler uses "shallow" operations.
 
 In order to perform deep operations on "reference" types you generally need to code it "by hand" or call a function.  Let's look at how...
 
@@ -323,9 +323,9 @@ Note that Go 1.21 (just released - see [Go 1.21](/blog/go1p21.html)) provides ge
 
 The built-in `copy` function allows you to copy the _contents_ of slices, but this will not change the length of the destination slice.
 
-To get an exact copy of a slice you must create a new slice (with the same length and capacity) then copy over all the elements using a `for ... range` loop.
+To get an exact copy of a slice you must create a new slice (with the same length and capacity) then copy over all the elements using a `for ... range` loop.  This gives a _deeper_ copy but if does not recurse _**deep** into_ the slice contents - such as if the elements were pointers, slices, etc.
 
-Deep comparison of slices are typically done manually, though the standard library does provide `bytes.Equal` for comparing `byte` slices.
+Deep comparison of slices is typically done manually, though the standard library does provide `bytes.Equal` for comparing `byte` slices.
 
 Note: like for maps, Go 1.21 provides generic helpers: `slices.Clone`, `slices.Equal`, etc.
 
