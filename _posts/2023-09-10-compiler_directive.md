@@ -1,6 +1,6 @@
 ---
 title: Compiler Directives
-last_modified_at: 2023-09-23T10:26:02+10:00
+last_modified_at: 2025-03-03T10:26:02+10:00
 excerpt: "A look at all of Go's _pragmas_ (except build tags). How **//go:debug** directive enhances Go's backward compatibility. Plus recent changes to the language that affect some directives."
 toc: true
 toc_sticky: true
@@ -14,7 +14,7 @@ permalink: /blog/directive.html
 ---
 The first Sydney Go Meetup I attended (2018) had a great talk by Dave Cheney on **compiler directives**, or **pragmas** as he called them (see [Go's hidden #pragmas](https://dave.cheney.net/2018/01/08/gos-hidden-pragmas)).
 
-A lot has happened to Go since then, in particular, there is a new `//go:debug` directive, and the way **build tags** work has changed.  I'll also look at a few other things such as a subtle difference to the behaviour of `//go:nosplit` due to changes in the Go runtime.
+A lot has happened to Go since then, in particular, there is a new `//go:debug` directive, and a change to **build tags** syntax.  I'll also look at a few other things like `//go:linkname` (which Dave omitted) and a **subtle change** to the behaviour of `//go:nosplit` due to changes in the Go runtime.
 
 # Background
 
@@ -524,41 +524,103 @@ func add(m, n int) int { return m + n }
 
 # //go:linkname
 
-This directive is more of a "linker" option than a compiler option.  It creates an object-file symbol for a function or non-local variable.  This can be used to create an alias for an exported (capitalised) function or variable or allow an unexported function or variable to be exported (using a different name).  The new name can include the package name - so it allows the function/variable to appear to be part of another package.
+Linkname has a bad reputation as it allows you to bypass **information hiding** to access the internals of a package.  Perhaps worse, it precludes the **type safety** provided by the compiler.  That said, you can use it in two different ways which I call **take** and **give**.  The first is something I would never recommend, but give uses _can_ be justified as explained below.
 
+(Ed Feb 2025: Go 1.24 implements changes that prevent **take** uses of `//go:linkname` in the standard library, apart from established (historical) uses)
 
-Unlike the directives above it need not appear directly above the affected function or variable in the source code, but it would be confusing if you put it elsewhere.  To use it **you must import "unsafe"** as it can cause major problems if used incorrectly.
+Go has limited support for [Information Hiding](https://en.wikipedia.org/wiki/Information_hiding).  Unlike many OO languages, where it is (mainly) provided at the class level, Go only provides it at the package level in two ways:
+1. only capitalised identifiers are exported from a package
+2. `internal` packages are not available outside their parent (and descendant) packages
+{: .notice--info}
 
-For example, the following code creates the symbol "g.h" that the linker will use to link to the function `f()`.
+`//go:linkname` is more of a "linker", than a compiler directive.  It creates an object-file symbol for a function or non-local variable.  This can be used to create an alias for an exported (capitalised) function or variable.  More commonly it allows an unexported function or variable to be exported (with a different name).
 
-```go
-...
-import "unsafe"
-...
-//go:linkname f g.h
-func f() {
-...
-```
-
-Then to call this function from the `g` package you must add a forward declaration for the function `h()` so that the compiler knows how to call it.
+As an example, consider a package `main` trying to call the (unexported) function `g()` of package `pkg`.  First, `main` declares a function `f()` to be what (it thinks) `g()` looks like:
 
 ```go
-package g
-
-import "unsafe"
-
-//go:linkname h
-func h()
+package main
+...
+func f() int // declared without a body
+...
+    i := f() // we want this to call g()
 ```
 
-Note that this use of the `//go:linkname` directive (with one parameter instead of two) is just so the compiler accepts the forward declaration, otherwise it will complain that `h()` does not have a function body.  (There are other ways to allow forward declarations such as including assembly source files in the package.)
+```go
+package pkg
 
-**Warning:** The forward declaration must exactly match the original variable/function, otherwise horrible things will happen!  Functions (such as `f`/`h` above) must match exactly in terms of parameters and return values.
+func g() int { return 42 }
+```
+
+For this to work you can use `//go:linkname` in two ways - `main` can **take** access, or `pkg` can **give** access.
+
+## Take
+
+To take access `main` must specify the full path to the package's unexported identifier.  You must also _import_ the package otherwise you get an error like "relocation target github.com/full_package_path/pkg.g not defined".
+
+To use `//go"linkname` you must also import **"unsafe"** as a reminder that you are doing something not recommended.
+{: .notice--warning}
+
+Unlike the directives above `//go:linkname` need not appear directly above the affected function or variable in the source code, but it would be confusing if you put it elsewhere.
+{: .notice--info}
+
+```go
+package main
+
+import (
+	_ "unsafe"
+	_ "github.com/full_package_path/pkg"
+)
+...
+//go:linkname f github.com/full_package_path/pkg.g
+func f() int
+```
+
+## Give
+
+The alternative is that `pkg` can explicitly **give** access.
+
+```go
+package pkg
+
+import _ "unsafe"
+
+//go:linkname g main.f
+func g() int { return 42 }
+```
+
+This is safer, as then at least anyone modifying `pkg` will be aware that `g()` is also "exported".  It also limits access only to packages called `main`, but in this case the full package path is _not_ required so _any_ package called `main` can access `g()`.
+
+Finally to avoid the error "missing function body" for `f()` you need to tell the compiler that the linker will handle it using the `//go:linkname` directive (with one parameter instead of two).  You you also need to import "pkg" and "unsafe".  (Another way is to include assembly or CGO source files in the package, but I could not get that to work.)
+
+```go
+package main
+
+import (
+	_ "unsafe"
+	_ "github.com/full_package_path/pkg"
+)
+...
+//go:linkname f
+func f() int
+```
+
+## Type Safety
+
+The forward declaration must exactly match the original variable/function, otherwise horrible things will happen!  Functions must match exactly in terms of parameters and return values.
 {: .notice--danger}
+
+For example, if `f()` is declared like this who know what happens when it is called. 
+
+```go
+//go:linkname f
+func f(int) string // ***INCORRECT DECLARATION***
+```
 
 ## When to use //go:linkname
 
-I can't imagine a good use for this directive as it circumvents Go's (limited) information hiding facilities.
+Some problems are not that easy to decompose into modules.  For example, you may want to create two distinct packages in Go but somehow have them share a small amount of information.  The Go standard library uses `//go:linkname` extensively to allow nicely encapsulated packages without sacrificing efficiency or to avoid a lot of duplicate code.
+
+You can do the same in your own packages but always use the "safer" **give** version of `//go:linkname` and be very careful of type safety.
 
 # gccgo directives
 
@@ -589,9 +651,11 @@ func F() {
 
 # Code Generation
 
+There are a few things that the Go compiler and/or Go tools will look for in comments that do _not_ follow the `//go:`<directive> convention. 
+
 ## // Code generated (DO NOT EDIT)
 
-If you write software that generates Go code you should indicate this with a line at the top of the source file like this:
+If you write software that generates Go code you should indicate this with a line **at the top of the source file** like this:
 
 // Code generated ... DO NOT EDIT.
 
@@ -601,7 +665,7 @@ This indicates to a Go-aware editor/IDE that the user should be prevented from (
 
 **When to use**
 
-This directive should be used if you are generating Go code that may be overwritten.
+This directive should be used if you are generating Go code that may be overwritten later (ie re-generated).
 
 ## //line
 
