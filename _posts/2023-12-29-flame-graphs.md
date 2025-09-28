@@ -149,15 +149,15 @@ There are several different ways to generate profiles in Go.  You can generate a
 To programmatically control exactly what code you are profiling you need to use the standard library `runtime/pprof` package.  Call `pprof.StartCPUProfile()` to start CPU profiling and `pprof.StopCPUProfile()`.  You need to pass an `io.Writer` (usually just a file open for writing) to `pprof.StartCPUProfile()`.  For example:
 
 ```go
-	f, err := os.Create("cpu.pprof")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
+    f, err := os.Create("cpu.pprof")
+    if err != nil {
+        panic(err)
+    }
+    defer f.Close()
 
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-	// code to profile
+    pprof.StartCPUProfile(f)
+    defer pprof.StopCPUProfile()
+    // code to profile
 ```
 
 _All_ goroutines of the process are profiled until `StopCPUProfile()` is called.  If there are other running goroutines then their code will also be profiled.  If you just want to profile code in one goroutine (ie, just the above `// code to profile`) then you need to somehow suspend other goroutines or avoid creating them.
@@ -176,7 +176,7 @@ If you are running the default web handler then you don't have to do anything bu
 
 ```go
 import (
-	_  net/http/pprof
+    _  net/http/pprof
 )
 ```
 
@@ -495,7 +495,7 @@ Of course, the above `sum()` function could be made a lot faster like this:
 
 ```go
 func sum(n int) int {
-	return (n * (n + 1)) / 2
+    return (n * (n + 1)) / 2
 }
 ```
 
@@ -517,13 +517,13 @@ Alternatively, if an unexpectedly wide block has lots of blocks above it (large 
 
 ```go
     for {
-		select {
+        select {
         case <-ch:
             // handle cases
         case <-ctx.Done():
-			return
+            return
         default:
-			// do something (or nothing) is all cases are blocked
+            // do something (or nothing) is all cases are blocked
         }
     }
 ```
